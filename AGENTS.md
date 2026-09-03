@@ -13,19 +13,40 @@
   - All replacement blocks are padded with spaces to match the maximum width and maximum height across all defined rule blocks.
   - Any character without an explicit rule (including whitespace in the pattern) is replaced by a blank block of spaces matching the normalized dimensions.
 - **Iterative 2D Substitution**:
-  - Given an initial multi-line ASCII pattern, each character is replaced by its corresponding normalized block.
+  - Given an initial multi-line ASCII seed pattern, each character is replaced by its corresponding normalized block.
   - The blocks are stitched horizontally across pattern columns and vertically across pattern rows to produce the next iteration's output grid.
+- **Output Cropping**:
+  - Optional viewport bounds (width and height) to truncate the rendered pattern grid horizontally and vertically.
 
 ---
 
 ## 2. Current Project State
 
 Key components in `src/Main.elm`:
-- **TEA Lifecycle**: `Browser.sandbox` setup with `Model`, `Msg` (`EditRules`, `EditPattern`, `Tick`), `init`, `update`, and `view`. Initial model sets up sample rules and parses them.
-- **Parser**: Implemented `rulesP`, `ruleP`, `ruleKeyP`, and `lineP` using `dasch/parser`. Successfully parses single-character rule keys and multi-line ASCII replacement blocks separated by blank lines into `Rules` (`Dict Char (List String)`).
-- **View**: Interactive `<textarea>` bound to `model.rulesInput` that triggers `EditRules` on change, along with a `<pre>` tag displaying `Debug.toString model.rules`.
-- **Rendering / Engine**: Stubbed `render : List String -> Rules -> List String` returning `[]` (2D grid block normalization and iterative replacement pending implementation).
-- **Test Suite**: Embedded `suite : Test` covering rule parsing (canonical README example, single rule, whitespace handling, blank lines, error cases) and TEA message updates.
+- **TEA Lifecycle & State**: `Browser.sandbox` setup with `Model`, `Msg` (`EditRules`, `EditSeed`, `Step`, `ToggleCrop`, `EditCropWidth`, `EditCropHeight`), `init`, `update`, and `view`.
+  - `Model` tracks:
+    - `rules : Result String Rules`: Parsed and normalized rule map and dimensions.
+    - `rulesInput : String`: Raw text for rule definitions.
+    - `seedInput : String`: Raw initial pattern input.
+    - `dirty : Bool`: Indicates when rules or seed changed, requiring re-seeding on the next `Step`.
+    - `pattern : List String`: Current 2D pattern grid.
+    - `cropEnabled : Bool`, `cropWidth : Int`, `cropHeight : Int`: Cropping configuration.
+- **Parser & Normalizer**:
+  - `rulesP`, `ruleP`, `ruleKeyP`, `lineP`, and `blankLines` using `dasch/parser`.
+  - `normalizeRules : Dict Char (List String) -> Rules` computes `blockWidth` and `blockHeight`, padding all replacement blocks to uniform dimensions and returning a `Rules` record (`{ blockWidth : Int, blockHeight : Int, mapping : Dict Char (List String) }`).
+- **Rendering Engine & Cropping**:
+  - `render : List String -> Rules -> List String` performs 2D character-to-block expansion using `stitchRow` and falls back to blank blocks for unmapped characters.
+  - `crop : Int -> Int -> List String -> List String` and `applyCrop : Model -> List String -> List String` truncate pattern lines and characters according to crop settings.
+- **Update Logic**:
+  - `EditRules` and `EditSeed` update inputs, re-parse rules, and mark `dirty = True`.
+  - `ToggleCrop`, `EditCropWidth`, and `EditCropHeight` adjust cropping parameters without resetting the `dirty` state.
+  - `Step` executes an iteration: if `dirty = True`, it pads `seedInput` to uniform rectangle, renders the initial pattern, and clears `dirty`; if `dirty = False`, it advances from the previous `pattern`. The rendered grid is cropped if `cropEnabled = True`.
+- **View**:
+  - Interactive UI with textareas for `rulesInput` and `seedInput`.
+  - Cropping controls (checkbox toggle, numeric width and height inputs).
+  - "Step" button to advance evaluation.
+  - Monospace `<pre>` displaying the rendered pattern.
+- **Test Suite**: Embedded `suite : Test` with 33 unit tests covering rule parsing, normalization, 2D rendering (including canonical README example), TEA update logic (dirty/clean stepping), and cropping behavior.
 
 ---
 
@@ -66,7 +87,7 @@ Rules input string format:
  /
 /
 ```
-- Line 1 of a rule: single character (e.g., `\` or `/`).
+- Line 1 of a rule: single character key (e.g., `\` or `/`).
 - Subsequent lines: block representation lines (e.g. `\/` then ` \`).
 - Rules separated by one or more blank lines (`\n\n`).
 
@@ -77,13 +98,19 @@ Rules input string format:
    - Pad every existing line on the right with spaces up to `maxWidth`.
    - If line count < `maxHeight`, append full lines consisting of `maxWidth` spaces until line count reaches `maxHeight`.
 4. Define default block: `maxHeight` lines, each containing `maxWidth` spaces.
+5. Store in `Rules` record: `{ blockWidth = maxWidth, blockHeight = maxHeight, mapping = Dict Char (List String) }`.
 
 ### 4.3 2D Iterative Grid Replacement
 For a 2D pattern (list of strings `patternLines`):
-1. For each line in `patternLines`, map each character `c` to its normalized block (list of `maxHeight` strings of length `maxWidth`).
-2. Transpose / stitch the row of blocks:
-   - For row index `r` from 0 to `maxHeight - 1`, concatenate the `r`-th line from each block in the row horizontally.
-3. Concatenate all generated rows vertically to form the new list of strings.
+1. For each line in `patternLines`, map each character `c` to its normalized block (list of `maxHeight` strings of length `maxWidth`), defaulting to the space block for unmapped characters.
+2. Transpose / stitch each row of blocks using `stitchRow`:
+   - Horizontally concatenate matching line indices across blocks in the row (`List.map2 (++)`).
+3. Concatenate all generated rows vertically (`List.concatMap`) to form the new list of strings.
+
+### 4.4 Output Cropping
+1. Truncate pattern height: take up to `max 0 cropHeight` lines.
+2. Truncate line widths: take up to `max 0 cropWidth` characters per line (`String.left`).
+3. Applied after rendering when `cropEnabled` is active.
 
 ---
 
@@ -106,5 +133,6 @@ pnpm exec -- elm-test src/Main.elm
   - Rule parsing (valid rules, empty inputs, edge cases with trailing whitespace or blank lines).
   - Block padding and dimension normalization.
   - Single-step and multi-step pattern evaluation matching `README.md` examples.
-  - TEA update messages (`EditRules`, `EditPattern`, `Tick`).
-- **UI & UX**: When implementing `view`, provide inputs for rules and initial pattern, controls for stepping/ticking, and formatted output display (e.g. `<pre>` or monospace code element).
+  - TEA update messages and dirty state lifecycle (`EditRules`, `EditSeed`, `Step`).
+  - Cropping functions and message handlers (`ToggleCrop`, `EditCropWidth`, `EditCropHeight`).
+- **UI & UX**: Provide controls for rules, seed pattern, stepping, cropping parameters, and formatted output display in `<pre>`.
