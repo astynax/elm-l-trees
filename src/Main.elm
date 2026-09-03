@@ -17,6 +17,9 @@ type Msg
     = EditRules String
     | EditSeed String
     | Step
+    | ToggleCrop Bool
+    | EditCropWidth String
+    | EditCropHeight String
 
 
 type alias Model =
@@ -25,6 +28,9 @@ type alias Model =
     , seedInput : String
     , dirty : Bool
     , pattern : List String
+    , cropEnabled : Bool
+    , cropWidth : Int
+    , cropHeight : Int
     }
 
 
@@ -103,6 +109,35 @@ view model =
             , HA.cols 40
             ]
             []
+        , Html.fieldset []
+            [ Html.label []
+                [ Html.input
+                    [ HA.type_ "checkbox"
+                    , HA.checked model.cropEnabled
+                    , HE.onCheck ToggleCrop
+                    ]
+                    []
+                , Html.text "Crop by"
+                ]
+            , Html.label []
+                [ Html.text "width"
+                , Html.input
+                    [ HA.type_ "number"
+                    , HA.value (String.fromInt model.cropWidth)
+                    , HE.onInput EditCropWidth
+                    ]
+                    []
+                ]
+            , Html.label []
+                [ Html.text "height"
+                , Html.input
+                    [ HA.type_ "number"
+                    , HA.value (String.fromInt model.cropHeight)
+                    , HE.onInput EditCropHeight
+                    ]
+                    []
+                ]
+            ]
         , Html.button [ HE.onClick Step ] [ Html.text "Step" ]
         , Html.pre [] [ Html.text (String.join "\n" model.pattern) ]
         ]
@@ -141,6 +176,22 @@ render patternLines rules =
         List.concatMap renderLine patternLines
 
 
+crop : Int -> Int -> List String -> List String
+crop width height pat =
+    pat
+        |> List.take (max 0 height)
+        |> List.map (String.left (max 0 width))
+
+
+applyCrop : Model -> List String -> List String
+applyCrop m pat =
+    if m.cropEnabled then
+        crop m.cropWidth m.cropHeight pat
+
+    else
+        pat
+
+
 init : Model
 init =
     let
@@ -152,6 +203,9 @@ init =
     , seedInput = "\\/"
     , dirty = True
     , pattern = []
+    , cropEnabled = False
+    , cropWidth = 50
+    , cropHeight = 50
     }
 
 
@@ -163,6 +217,15 @@ update msg m =
 
         EditSeed i ->
             { m | seedInput = i, dirty = True }
+
+        ToggleCrop enabled ->
+            { m | cropEnabled = enabled }
+
+        EditCropWidth w ->
+            { m | cropWidth = String.toInt w |> Maybe.withDefault m.cropWidth }
+
+        EditCropHeight h ->
+            { m | cropHeight = String.toInt h |> Maybe.withDefault m.cropHeight }
 
         Step ->
             let
@@ -190,13 +253,13 @@ update msg m =
                 in
                 { m
                     | dirty = False
-                    , pattern = applyRender paddedSeed
+                    , pattern = applyRender paddedSeed |> applyCrop m
                 }
 
             else
                 case m.rules of
                     Ok rules ->
-                        { m | pattern = render m.pattern rules }
+                        { m | pattern = render m.pattern rules |> applyCrop m }
 
                     Err _ ->
                         m
@@ -520,6 +583,9 @@ suite =
                             , seedInput = "X\nXX"
                             , dirty = True
                             , pattern = [ "old" ]
+                            , cropEnabled = False
+                            , cropWidth = 50
+                            , cropHeight = 50
                             }
 
                         updated =
@@ -549,6 +615,9 @@ suite =
                             , seedInput = "1"
                             , dirty = False
                             , pattern = [ "2" ]
+                            , cropEnabled = False
+                            , cropWidth = 50
+                            , cropHeight = 50
                             }
 
                         updated =
@@ -568,6 +637,9 @@ suite =
                             , seedInput = "A\nABC"
                             , dirty = True
                             , pattern = []
+                            , cropEnabled = False
+                            , cropWidth = 50
+                            , cropHeight = 50
                             }
 
                         updatedDirty =
@@ -579,6 +651,9 @@ suite =
                             , seedInput = "A"
                             , dirty = False
                             , pattern = [ "keep this" ]
+                            , cropEnabled = False
+                            , cropWidth = 50
+                            , cropHeight = 50
                             }
 
                         updatedClean =
@@ -591,5 +666,200 @@ suite =
                         , \_ -> Expect.equal False updatedClean.dirty
                         ]
                         ()
+            ]
+        , describe "Cropping"
+            [ test "default model initialization has cropping disabled and 50x50 dimensions" <|
+                \_ ->
+                    Expect.all
+                        [ \m -> Expect.equal False m.cropEnabled
+                        , \m -> Expect.equal 50 m.cropWidth
+                        , \m -> Expect.equal 50 m.cropHeight
+                        ]
+                        init
+            , test "crop helper truncates height and width" <|
+                \_ ->
+                    let
+                        pat =
+                            [ "12345"
+                            , "67890"
+                            , "ABCDE"
+                            , "FGHIJ"
+                            ]
+                    in
+                    Expect.equal [ "123", "678" ] (crop 3 2 pat)
+            , test "crop helper handles dimensions larger than pattern" <|
+                \_ ->
+                    let
+                        pat =
+                            [ "12"
+                            , "34"
+                            ]
+                    in
+                    Expect.equal pat (crop 50 50 pat)
+            , test "crop helper handles zero dimensions" <|
+                \_ ->
+                    let
+                        pat =
+                            [ "123"
+                            , "456"
+                            ]
+                    in
+                    Expect.all
+                        [ \_ -> Expect.equal [] (crop 3 0 pat)
+                        , \_ -> Expect.equal [ "", "" ] (crop 0 2 pat)
+                        ]
+                        ()
+            , test "crop helper handles negative dimensions" <|
+                \_ ->
+                    let
+                        pat =
+                            [ "123"
+                            , "456"
+                            ]
+                    in
+                    Expect.all
+                        [ \_ -> Expect.equal [] (crop 3 -1 pat)
+                        , \_ -> Expect.equal [ "", "" ] (crop -5 2 pat)
+                        ]
+                        ()
+            , test "ToggleCrop does not modify dirty flag" <|
+                \_ ->
+                    let
+                        cleanModel =
+                            { init | dirty = False, cropEnabled = False }
+
+                        dirtyModel =
+                            { init | dirty = True, cropEnabled = False }
+
+                        updatedClean =
+                            update (ToggleCrop True) cleanModel
+
+                        updatedDirty =
+                            update (ToggleCrop True) dirtyModel
+                    in
+                    Expect.all
+                        [ \_ -> Expect.equal False updatedClean.dirty
+                        , \_ -> Expect.equal True updatedClean.cropEnabled
+                        , \_ -> Expect.equal True updatedDirty.dirty
+                        , \_ -> Expect.equal True updatedDirty.cropEnabled
+                        ]
+                        ()
+            , test "EditCropWidth and EditCropHeight do not modify dirty flag" <|
+                \_ ->
+                    let
+                        cleanModel =
+                            { init | dirty = False, cropWidth = 50, cropHeight = 50 }
+
+                        dirtyModel =
+                            { init | dirty = True, cropWidth = 50, cropHeight = 50 }
+
+                        updatedClean =
+                            cleanModel
+                                |> update (EditCropWidth "30")
+                                |> update (EditCropHeight "20")
+
+                        updatedDirty =
+                            dirtyModel
+                                |> update (EditCropWidth "30")
+                                |> update (EditCropHeight "20")
+
+                        invalidInputModel =
+                            cleanModel
+                                |> update (EditCropWidth "abc")
+                                |> update (EditCropHeight "")
+                    in
+                    Expect.all
+                        [ \_ -> Expect.equal False updatedClean.dirty
+                        , \_ -> Expect.equal 30 updatedClean.cropWidth
+                        , \_ -> Expect.equal 20 updatedClean.cropHeight
+                        , \_ -> Expect.equal True updatedDirty.dirty
+                        , \_ -> Expect.equal 30 updatedDirty.cropWidth
+                        , \_ -> Expect.equal 20 updatedDirty.cropHeight
+                        , \_ -> Expect.equal 50 invalidInputModel.cropWidth
+                        , \_ -> Expect.equal 50 invalidInputModel.cropHeight
+                        , \_ -> Expect.equal False invalidInputModel.dirty
+                        ]
+                        ()
+            , test "Step crops pattern when cropEnabled is True on dirty step" <|
+                \_ ->
+                    let
+                        model =
+                            { rules =
+                                Ok
+                                    { blockWidth = 2
+                                    , blockHeight = 2
+                                    , mapping = Dict.fromList [ ( 'X', [ "11", "22" ] ) ]
+                                    }
+                            , rulesInput = "X\n11\n22"
+                            , seedInput = "XX\nXX"
+                            , dirty = True
+                            , pattern = []
+                            , cropEnabled = True
+                            , cropWidth = 3
+                            , cropHeight = 2
+                            }
+
+                        updated =
+                            update Step model
+                    in
+                    Expect.all
+                        [ \m -> Expect.equal False m.dirty
+                        , \m -> Expect.equal [ "111", "222" ] m.pattern
+                        ]
+                        updated
+            , test "Step crops pattern when cropEnabled is True on clean step" <|
+                \_ ->
+                    let
+                        model =
+                            { rules =
+                                Ok
+                                    { blockWidth = 2
+                                    , blockHeight = 2
+                                    , mapping = Dict.fromList [ ( '1', [ "AA", "BB" ] ) ]
+                                    }
+                            , rulesInput = ""
+                            , seedInput = "1"
+                            , dirty = False
+                            , pattern = [ "11", "11" ]
+                            , cropEnabled = True
+                            , cropWidth = 3
+                            , cropHeight = 3
+                            }
+
+                        updated =
+                            update Step model
+                    in
+                    Expect.all
+                        [ \m -> Expect.equal False m.dirty
+                        , \m -> Expect.equal [ "AAA", "BBB", "AAA" ] m.pattern
+                        ]
+                        updated
+            , test "Step preserves full pattern when cropEnabled is False" <|
+                \_ ->
+                    let
+                        model =
+                            { rules =
+                                Ok
+                                    { blockWidth = 2
+                                    , blockHeight = 2
+                                    , mapping = Dict.fromList [ ( 'X', [ "11", "22" ] ) ]
+                                    }
+                            , rulesInput = "X\n11\n22"
+                            , seedInput = "XX\nXX"
+                            , dirty = True
+                            , pattern = []
+                            , cropEnabled = False
+                            , cropWidth = 2
+                            , cropHeight = 2
+                            }
+
+                        updated =
+                            update Step model
+                    in
+                    Expect.all
+                        [ \m -> Expect.equal False m.dirty
+                        , \m -> Expect.equal [ "1111", "2222", "1111", "2222" ] m.pattern
+                        ]
+                        updated
             ]
         ]
