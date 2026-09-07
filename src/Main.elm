@@ -98,6 +98,8 @@ view model =
         , HA.style "grid-template-columns" "8em 1fr"
         , HA.style "grid-template-rows" "6em 1fr"
         , HA.style "gap" "1em"
+        , HA.style "height" "100vh"
+        , HA.style "box-sizing" "border-box"
         ]
         [ Html.div
             [ HA.style "display" "flex"
@@ -110,7 +112,9 @@ view model =
                 , HA.rows 3
                 , HA.cols 7
                 , HA.style "width" "100%"
+                , HA.style "height" "100%"
                 , HA.style "box-sizing" "border-box"
+                , HA.style "text-wrap-mode" "nowrap"
                 ]
                 []
             ]
@@ -162,12 +166,28 @@ view model =
                 , HA.rows 10
                 , HA.cols 7
                 , HA.style "width" "100%"
+                , HA.style "height" "100%"
                 , HA.style "box-sizing" "border-box"
+                , HA.style "text-wrap-mode" "nowrap"
                 ]
                 []
             ]
-        , Html.div []
-            [ Html.pre [] [ Html.text (String.join "\n" model.pattern) ]
+        , Html.div
+            [ HA.style "display" "flex"
+            , HA.style "flex-direction" "column"
+            , HA.style "height" "100%"
+            ]
+            [ Html.label [] [ Html.text "Pattern" ]
+            , Html.textarea
+                [ HA.value (String.join "\n" model.pattern)
+                , HA.readonly True
+                , HA.style "font-family" "monospace"
+                , HA.style "width" "100%"
+                , HA.style "height" "100%"
+                , HA.style "box-sizing" "border-box"
+                , HA.style "text-wrap-mode" "nowrap"
+                ]
+                []
             ]
         ]
 
