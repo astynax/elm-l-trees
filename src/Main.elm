@@ -16,6 +16,7 @@ import Test exposing (..)
 type Msg
     = EditRules String
     | EditSeed String
+    | Reset
     | Step
     | ToggleCrop Bool
     | EditCropWidth String
@@ -147,6 +148,7 @@ view model =
                         []
                     ]
                 ]
+            , Html.button [ HE.onClick Reset ] [ Html.text "Reset" ]
             , Html.button [ HE.onClick Step ] [ Html.text "Step" ]
             ]
         , Html.div
@@ -244,6 +246,9 @@ update msg m =
 
         EditSeed i ->
             { m | seedInput = i, dirty = True }
+
+        Reset ->
+            { m | pattern = String.lines m.seedInput, dirty = False }
 
         ToggleCrop enabled ->
             { m | cropEnabled = enabled }
@@ -691,6 +696,74 @@ suite =
                         , \_ -> Expect.equal False updatedDirty.dirty
                         , \_ -> Expect.equal [ "keep this" ] updatedClean.pattern
                         , \_ -> Expect.equal False updatedClean.dirty
+                        ]
+                        ()
+            ]
+        , describe "Reset update"
+            [ test "puts seed into pattern and clears dirty flag when dirty was True" <|
+                \_ ->
+                    let
+                        model =
+                            { init
+                                | seedInput = "A\nBC"
+                                , dirty = True
+                                , pattern = [ "old1", "old2" ]
+                            }
+
+                        updated =
+                            update Reset model
+                    in
+                    Expect.all
+                        [ \m -> Expect.equal False m.dirty
+                        , \m -> Expect.equal [ "A", "BC" ] m.pattern
+                        ]
+                        updated
+            , test "puts seed into pattern and clears dirty flag when dirty was False" <|
+                \_ ->
+                    let
+                        model =
+                            { init
+                                | seedInput = "XYZ"
+                                , dirty = False
+                                , pattern = [ "previous pattern" ]
+                            }
+
+                        updated =
+                            update Reset model
+                    in
+                    Expect.all
+                        [ \m -> Expect.equal False m.dirty
+                        , \m -> Expect.equal [ "XYZ" ] m.pattern
+                        ]
+                        updated
+            , test "stepping after reset advances pattern starting from seed" <|
+                \_ ->
+                    let
+                        rules =
+                            { blockWidth = 2
+                            , blockHeight = 1
+                            , mapping = Dict.fromList [ ( 'X', [ "YY" ] ) ]
+                            }
+
+                        model =
+                            { init
+                                | rules = Ok rules
+                                , seedInput = "X"
+                                , dirty = True
+                                , pattern = [ "something else" ]
+                            }
+
+                        resetModel =
+                            update Reset model
+
+                        steppedModel =
+                            update Step resetModel
+                    in
+                    Expect.all
+                        [ \_ -> Expect.equal [ "X" ] resetModel.pattern
+                        , \_ -> Expect.equal False resetModel.dirty
+                        , \_ -> Expect.equal [ "YY" ] steppedModel.pattern
+                        , \_ -> Expect.equal False steppedModel.dirty
                         ]
                         ()
             ]
