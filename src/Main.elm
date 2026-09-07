@@ -258,12 +258,16 @@ init =
                 r =
                     rules |> Result.withDefault (normalizeRules Dict.empty)
             in
-            seed |> seedToPattern |> render r
+            seed
+                |> seedToPattern
+                |> render r
+                |> render r
+                |> render r
     in
     { rules = rules
     , rulesInput = rulesExample
     , seedInput = seed
-    , dirty = True
+    , dirty = False
     , pattern = pattern
     , cropEnabled = False
     , cropWidth = 50
