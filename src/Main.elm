@@ -244,14 +244,27 @@ applyCrop m pat =
 init : Model
 init =
     let
+        seed =
+            "\\/"
+
         rulesExample =
-            "\\\n\\/\n \\\n\n/\n  /\n\\/\n/"
+            "\\\n\\/\n \\\n  \\\n\n/\n  /\n\\/\n/"
+
+        rules =
+            parse rulesP rulesExample
+
+        pattern =
+            let
+                r =
+                    rules |> Result.withDefault (normalizeRules Dict.empty)
+            in
+            seed |> seedToPattern |> (\p -> render p r)
     in
-    { rules = parse rulesP rulesExample
+    { rules = rules
     , rulesInput = rulesExample
-    , seedInput = "\\/"
+    , seedInput = seed
     , dirty = True
-    , pattern = []
+    , pattern = pattern
     , cropEnabled = False
     , cropWidth = 50
     , cropHeight = 50
@@ -280,41 +293,42 @@ update msg m =
             { m | cropHeight = String.toInt h |> Maybe.withDefault m.cropHeight }
 
         Step ->
-            let
-                applyRender pat =
-                    case m.rules of
-                        Ok rules ->
-                            render pat rules
+            case m.rules of
+                Err _ ->
+                    m
 
-                        Err _ ->
-                            pat
-            in
-            if m.dirty then
-                let
-                    seedLines =
-                        String.lines m.seedInput
+                Ok rules ->
+                    if m.dirty then
+                        { m
+                            | dirty = False
+                            , pattern =
+                                m.seedInput
+                                    |> seedToPattern
+                                    |> (\p -> render p rules)
+                                    |> applyCrop m
+                        }
 
-                    maxSeedWidth =
-                        seedLines
-                            |> List.map String.length
-                            |> List.maximum
-                            |> Maybe.withDefault 0
+                    else
+                        { m
+                            | pattern =
+                                render m.pattern rules
+                                    |> applyCrop m
+                        }
 
-                    paddedSeed =
-                        List.map (String.padRight maxSeedWidth ' ') seedLines
-                in
-                { m
-                    | dirty = False
-                    , pattern = applyRender paddedSeed |> applyCrop m
-                }
 
-            else
-                case m.rules of
-                    Ok rules ->
-                        { m | pattern = render m.pattern rules |> applyCrop m }
+seedToPattern : String -> List String
+seedToPattern s =
+    let
+        seedLines =
+            String.lines s
 
-                    Err _ ->
-                        m
+        maxSeedWidth =
+            seedLines
+                |> List.map String.length
+                |> List.maximum
+                |> Maybe.withDefault 0
+    in
+    List.map (String.padRight maxSeedWidth ' ') seedLines
 
 
 parse : Parser a -> String -> Result String a
