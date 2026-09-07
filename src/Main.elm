@@ -127,10 +127,10 @@ view model =
                         , HE.onCheck ToggleCrop
                         ]
                         []
-                    , Html.text "Crop by"
+                    , Html.text "Crop "
                     ]
                 , Html.label []
-                    [ Html.text "width"
+                    [ Html.text "to"
                     , Html.input
                         [ HA.type_ "number"
                         , HA.value (String.fromInt model.cropWidth)
@@ -139,7 +139,7 @@ view model =
                         []
                     ]
                 , Html.label []
-                    [ Html.text "height"
+                    [ Html.text "by"
                     , Html.input
                         [ HA.type_ "number"
                         , HA.value (String.fromInt model.cropHeight)
