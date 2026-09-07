@@ -111,6 +111,7 @@ view model =
                 , HE.onInput EditSeed
                 , HA.rows 3
                 , HA.cols 7
+                , HA.style "font-family" "monospace"
                 , HA.style "width" "100%"
                 , HA.style "height" "100%"
                 , HA.style "box-sizing" "border-box"
@@ -168,6 +169,7 @@ view model =
                 , HE.onInput EditRules
                 , HA.rows 10
                 , HA.cols 7
+                , HA.style "font-family" "monospace"
                 , HA.style "width" "100%"
                 , HA.style "height" "100%"
                 , HA.style "box-sizing" "border-box"
