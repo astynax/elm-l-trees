@@ -123,7 +123,10 @@ view model =
             , HA.style "align-items" "center"
             , HA.style "gap" "1em"
             ]
-            [ Html.fieldset []
+            [ Html.fieldset
+                [ HA.style "border" "none"
+                , HA.style "padding" "0"
+                ]
                 [ Html.label []
                     [ Html.input
                         [ HA.type_ "checkbox"
