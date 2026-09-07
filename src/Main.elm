@@ -92,54 +92,81 @@ main =
 
 view : Model -> Html Msg
 view model =
-    Html.div []
-        [ Html.label [] [ Html.text "Rules" ]
-        , Html.textarea
-            [ HA.value model.rulesInput
-            , HE.onInput EditRules
-            , HA.rows 10
-            , HA.cols 40
+    Html.div
+        [ HA.style "display" "grid"
+        , HA.style "grid-template-columns" "8em 1fr"
+        , HA.style "grid-template-rows" "6em 1fr"
+        , HA.style "gap" "1em"
+        ]
+        [ Html.div
+            [ HA.style "display" "flex"
+            , HA.style "flex-direction" "column"
             ]
-            []
-        , Html.label [] [ Html.text "Seed" ]
-        , Html.textarea
-            [ HA.value model.seedInput
-            , HE.onInput EditSeed
-            , HA.rows 5
-            , HA.cols 40
+            [ Html.label [] [ Html.text "Seed" ]
+            , Html.textarea
+                [ HA.value model.seedInput
+                , HE.onInput EditSeed
+                , HA.rows 3
+                , HA.cols 7
+                , HA.style "width" "100%"
+                , HA.style "box-sizing" "border-box"
+                ]
+                []
             ]
-            []
-        , Html.fieldset []
-            [ Html.label []
-                [ Html.input
-                    [ HA.type_ "checkbox"
-                    , HA.checked model.cropEnabled
-                    , HE.onCheck ToggleCrop
-                    ]
-                    []
-                , Html.text "Crop by"
-                ]
-            , Html.label []
-                [ Html.text "width"
-                , Html.input
-                    [ HA.type_ "number"
-                    , HA.value (String.fromInt model.cropWidth)
-                    , HE.onInput EditCropWidth
-                    ]
-                    []
-                ]
-            , Html.label []
-                [ Html.text "height"
-                , Html.input
-                    [ HA.type_ "number"
-                    , HA.value (String.fromInt model.cropHeight)
-                    , HE.onInput EditCropHeight
-                    ]
-                    []
-                ]
+        , Html.div
+            [ HA.style "display" "flex"
+            , HA.style "align-items" "center"
+            , HA.style "gap" "1em"
             ]
-        , Html.button [ HE.onClick Step ] [ Html.text "Step" ]
-        , Html.pre [] [ Html.text (String.join "\n" model.pattern) ]
+            [ Html.fieldset []
+                [ Html.label []
+                    [ Html.input
+                        [ HA.type_ "checkbox"
+                        , HA.checked model.cropEnabled
+                        , HE.onCheck ToggleCrop
+                        ]
+                        []
+                    , Html.text "Crop by"
+                    ]
+                , Html.label []
+                    [ Html.text "width"
+                    , Html.input
+                        [ HA.type_ "number"
+                        , HA.value (String.fromInt model.cropWidth)
+                        , HE.onInput EditCropWidth
+                        ]
+                        []
+                    ]
+                , Html.label []
+                    [ Html.text "height"
+                    , Html.input
+                        [ HA.type_ "number"
+                        , HA.value (String.fromInt model.cropHeight)
+                        , HE.onInput EditCropHeight
+                        ]
+                        []
+                    ]
+                ]
+            , Html.button [ HE.onClick Step ] [ Html.text "Step" ]
+            ]
+        , Html.div
+            [ HA.style "display" "flex"
+            , HA.style "flex-direction" "column"
+            ]
+            [ Html.label [] [ Html.text "Rules" ]
+            , Html.textarea
+                [ HA.value model.rulesInput
+                , HE.onInput EditRules
+                , HA.rows 10
+                , HA.cols 7
+                , HA.style "width" "100%"
+                , HA.style "box-sizing" "border-box"
+                ]
+                []
+            ]
+        , Html.div []
+            [ Html.pre [] [ Html.text (String.join "\n" model.pattern) ]
+            ]
         ]
 
 
