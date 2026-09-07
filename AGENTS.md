@@ -35,7 +35,7 @@ Key components in `src/Main.elm`:
   - `rulesP`, `ruleP`, `ruleKeyP`, `lineP`, and `blankLines` using `dasch/parser`.
   - `normalizeRules : Dict Char (List String) -> Rules` computes `blockWidth` and `blockHeight`, padding all replacement blocks to uniform dimensions and returning a `Rules` record (`{ blockWidth : Int, blockHeight : Int, mapping : Dict Char (List String) }`).
 - **Rendering Engine & Cropping**:
-  - `render : List String -> Rules -> List String` performs 2D character-to-block expansion using `stitchRow` and falls back to blank blocks for unmapped characters.
+  - `render : Rules -> List String -> List String` performs 2D character-to-block expansion using `stitchRow` and falls back to blank blocks for unmapped characters.
   - `crop : Int -> Int -> List String -> List String` and `applyCrop : Model -> List String -> List String` truncate pattern lines and characters according to crop settings.
 - **Update Logic**:
   - `EditRules` and `EditSeed` update inputs, re-parse rules, and mark `dirty = True`.

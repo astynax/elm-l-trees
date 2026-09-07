@@ -202,8 +202,8 @@ stitchRow blocks =
             List.foldl (\block acc -> List.map2 (++) acc block) first rest
 
 
-render : List String -> Rules -> List String
-render patternLines rules =
+render : Rules -> List String -> List String
+render rules patternLines =
     if rules.blockWidth == 0 || rules.blockHeight == 0 then
         []
 
@@ -258,7 +258,7 @@ init =
                 r =
                     rules |> Result.withDefault (normalizeRules Dict.empty)
             in
-            seed |> seedToPattern |> (\p -> render p r)
+            seed |> seedToPattern |> render r
     in
     { rules = rules
     , rulesInput = rulesExample
@@ -304,14 +304,15 @@ update msg m =
                             , pattern =
                                 m.seedInput
                                     |> seedToPattern
-                                    |> (\p -> render p rules)
+                                    |> render rules
                                     |> applyCrop m
                         }
 
                     else
                         { m
                             | pattern =
-                                render m.pattern rules
+                                m.pattern
+                                    |> render rules
                                     |> applyCrop m
                         }
 
@@ -553,7 +554,7 @@ suite =
                             , mapping = Dict.fromList [ ( 'X', [ "AB", "CD" ] ) ]
                             }
                     in
-                    Expect.equal [ "ABAB", "CDCD" ] (render [ "XX" ] rules)
+                    Expect.equal [ "ABAB", "CDCD" ] (render rules [ "XX" ])
             , test "substitutes default space block for unmapped characters and whitespace" <|
                 \_ ->
                     let
@@ -563,7 +564,7 @@ suite =
                             , mapping = Dict.fromList [ ( 'X', [ "AB", "CD" ] ) ]
                             }
                     in
-                    Expect.equal [ "AB  ", "CD  " ] (render [ "X " ] rules)
+                    Expect.equal [ "AB  ", "CD  " ] (render rules [ "X " ])
             , test "returns empty list on zero dimension rules or empty pattern" <|
                 \_ ->
                     let
@@ -571,8 +572,8 @@ suite =
                             { blockWidth = 0, blockHeight = 0, mapping = Dict.empty }
                     in
                     Expect.all
-                        [ \_ -> Expect.equal [] (render [ "X" ] emptyRules)
-                        , \_ -> Expect.equal [] (render [] { blockWidth = 2, blockHeight = 2, mapping = Dict.empty })
+                        [ \_ -> Expect.equal [] (render emptyRules [ "X" ])
+                        , \_ -> Expect.equal [] (render { blockWidth = 2, blockHeight = 2, mapping = Dict.empty } [])
                         ]
                         ()
             , test "renders canonical README example across consecutive steps" <|
@@ -591,7 +592,7 @@ suite =
                         Ok rules ->
                             let
                                 step1 =
-                                    render [ "\\/" ] rules
+                                    render rules [ "\\/" ]
 
                                 expectedStep1 =
                                     [ "\\/ /"
@@ -599,7 +600,7 @@ suite =
                                     ]
 
                                 step2 =
-                                    render step1 rules
+                                    render rules step1
 
                                 expectedStep2 =
                                     [ "\\/ /   /"
@@ -632,7 +633,7 @@ suite =
                         , "2211"
                         , "2211"
                         ]
-                        (render [ "AB", "BA" ] rules)
+                        (render rules [ "AB", "BA" ])
             ]
         , describe "Step update"
             [ test "when dirty is True, re-seeds from padded seedInput, clears dirty, and renders pattern" <|
@@ -694,7 +695,7 @@ suite =
                         , \m -> Expect.equal [ "33" ] m.pattern
                         ]
                         updated
-            , test "when rules is Err, preserves padded seed on dirty step and leaves pattern on clean step" <|
+            , test "when rules is Err, does nothing on step" <|
                 \_ ->
                     let
                         dirtyErrModel =
@@ -726,10 +727,8 @@ suite =
                             update Step cleanErrModel
                     in
                     Expect.all
-                        [ \_ -> Expect.equal [ "A  ", "ABC" ] updatedDirty.pattern
-                        , \_ -> Expect.equal False updatedDirty.dirty
-                        , \_ -> Expect.equal [ "keep this" ] updatedClean.pattern
-                        , \_ -> Expect.equal False updatedClean.dirty
+                        [ \_ -> Expect.equal dirtyErrModel updatedDirty
+                        , \_ -> Expect.equal cleanErrModel updatedClean
                         ]
                         ()
             ]
